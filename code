@@ -1,0 +1,124 @@
+#include <Wire.h>
+#include "Adafruit_SHT31.h"
+
+Adafruit_SHT31 sht31 = Adafruit_SHT31();
+byte degree[8] =
+{
+0b00011,
+0b00011,
+0b00000,
+0b00000,
+0b00000,
+0b00000,
+0b00000,
+0b00000
+};
+ 
+
+#ifdef ESP32
+  #include <WiFi.h>
+  #include <HTTPClient.h>
+#else
+  #include <ESP8266WiFi.h>
+  #include <ESP8266HTTPClient.h>
+  #include <WiFiClient.h>
+#endif
+
+#include <Wire.h>
+
+
+// Replace with your network credentials
+const char* ssid     = "Brainteam2.4G";
+const char* password = "beyingucu2021+";
+
+// REPLACE with your Domain name and URL path or IP address with path
+const char* serverName = "http://munirturk.com.tr/post-data.php";
+
+String apiKeyValue = "tPmAT5Ab3j7F9";
+
+/*#include <SPI.h>
+#define BME_SCK 18
+#define BME_MISO 19
+#define BME_MOSI 23
+#define BME_CS 5*/
+
+
+
+void setup() {
+  Serial.begin(115200);
+  
+  WiFi.begin(ssid, password);
+  Serial.println("Connecting");
+  while(WiFi.status() != WL_CONNECTED) { 
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.print("Connected to WiFi network with IP Address: ");
+  Serial.println(WiFi.localIP());
+
+  // (you can also pass in a Wire library object like &Wire2)
+ 
+ while (!Serial)
+delay(10); // will pause Zero, Leonardo, etc until serial console opens
+Serial.println("SHT31 test");
+if (! sht31.begin(0x44)) { // Set to 0x45 for alternate i2c addr
+Serial.println("Couldn't find SHT31");
+while (1) delay(1);
+}
+}
+
+void loop() {
+  float t = sht31.readTemperature();
+float h = sht31.readHumidity();
+ 
+if (! isnan(t)) { // check if 'is not a number'
+Serial.print("Temp *C = "); Serial.println(t);
+
+} else {
+Serial.println("Failed to read temperature");
+}
+ 
+if (! isnan(h)) { // check if 'is not a number'
+Serial.print("Hum. % = "); Serial.println(h);
+} else {
+Serial.println("Failed to read humidity");
+}
+
+  //Check WiFi connection status
+  if(WiFi.status()== WL_CONNECTED){
+    WiFiClient client;
+    HTTPClient http;
+    
+    // Your Domain name with URL path or IP address with path
+    http.begin(client, serverName);
+    
+    // Specify content-type header
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    
+    // Prepare your HTTP POST request data
+    String httpRequestData = "api_key=" + apiKeyValue + "&value1=" + String(sht31.readTemperature())
+                           + "&value2=" + String(sht31.readHumidity()) + "&value3=" + "";
+    Serial.print("httpRequestData: ");
+    Serial.println(httpRequestData);
+    
+  
+    int httpResponseCode = http.POST(httpRequestData);
+     
+  if (httpResponseCode>0) {
+      Serial.print("HTTP Response code: ");
+      Serial.println(httpResponseCode);
+    }
+    else {
+      Serial.print("Error code: ");
+      Serial.println(httpResponseCode);
+    }
+    // Free resources
+    http.end();
+  }
+  else {
+    Serial.println("WiFi Disconnected");
+  }
+  //Send an HTTP POST request every 30 seconds
+  delay(30000);  
+}
